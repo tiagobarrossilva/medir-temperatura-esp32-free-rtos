@@ -6,15 +6,7 @@
 LiquidCrystal_I2C LCD = LiquidCrystal_I2C(0x27, 16, 2);
 
 #define TEMPO_DEBOUNCE 500 //ms
-unsigned long timestamp_ultimo_acionamento = 0;
-
-int PinoNTC = 4; // PINO DO NTC10K
-double Vs = 3.3; // TENSÃO DE SAIDA DO ESP32
-double R1 = 10000; //RESISTOR UTILIZADO NO DIVISOR DE TENSÃO
-double Beta = 3950; // VALOR DE BETA
-double To=298.15; // VALOR EM KELVIN REFERENTE A 25° CELSIUS
-double Ro=10000;
-double adcMax = 4095.0;
+volatile unsigned long timestamp_ultimo_acionamento = 0;
 
 TaskHandle_t tarefaTemperatura;
 TaskHandle_t tarefaExibicaoDisplay;
@@ -24,34 +16,51 @@ SemaphoreHandle_t SMF1;
 SemaphoreHandle_t SMF2;
 SemaphoreHandle_t SMF3;
 
-volatile float fahrenheit;
-volatile float celsius;
+volatile double fahrenheit;
+volatile double celsius;
 volatile boolean exibirTemperatura = false;
 volatile boolean selecionadoCelsius = false;
 volatile boolean limparDisplay = false;
 
 void verificarTemperatura(void *arg){
+  // Tensão de saida do ESP32
+  double Vs = 3.3;
+
+  // Resistor utilizado no divisor de tensão
+  double R1 = 10000;
+
+  // Valor de Beta
+  double Beta = 3950;
+
+  // Valor em Kelvin referente a 25º Celsius
+  double To=298.15;
+
+  double Ro=10000;
+  double adcMax = 4095.0;
   double Vout, Rt;
   double T, Tc, Tf, adc;
 
   while(true){
-    //GARANTE QUE AS INFORMAÇÕES SERÃO RESETADAS APÓS CADA LEITURA
-    Vout, Rt = 0;
-    T, Tc, Tf, adc = 0;
+    // GARANTE QUE AS INFORMAÇÕES SERÃO RESETADAS APÓS CADA LEITURA
+    Vout = 0;
+    Rt = 0;
+    T =0;
+    Tc = 0;
+    Tf = 0;
+    adc = 0;
 
-    // VARIÁVEL QUE RECEBE A LEITURA DO NTC10K
-    adc = analogRead(PinoNTC);
+    // variavel que recebe leitura do sensor = analogRead(numero do pino)
+    adc = analogRead(4);
 
-    //CALCULOS PARA CONVERSÃO DA LEITURA RECEBIDA PELO ESP32 EM TEMPERATURA EM °C
+    // CALCULOS PARA CONVERSÃO DA LEITURA RECEBIDA PELO ESP32 EM TEMPERATURA EM °C
     Vout = adc * Vs/adcMax;
     Rt = R1 * Vout / (Vs - Vout);
     T = 1/(1/To + log(Rt/Ro)/Beta);
     Tc = T - 273.15;
     Tf = Tc * 9 / 5 + 32;
-      
     celsius = Tc;
     fahrenheit = Tf;
-    vTaskDelay(200);
+    vTaskDelay(1000);
   }
 }
 
@@ -81,7 +90,7 @@ void exibicaoDisplay(void *arg){
       LCD.setCursor(0, 0);
       LCD.println("Bem vindo");
     }
-    vTaskDelay(400);
+    vTaskDelay(500);
   }
 }
 
@@ -106,7 +115,7 @@ void verificarSemaforos(void *arg){
 
       xSemaphoreGive(SMF3);
     }
-    vTaskDelay(200);
+    vTaskDelay(250);
   }
 }
 
@@ -125,7 +134,6 @@ void IRAM_ATTR isr2(){
 }
 
 void setup() {
-  pinMode(36,INPUT);
   attachInterrupt(2, isr, RISING);
   attachInterrupt(0, isr2, RISING);
 
@@ -133,8 +141,6 @@ void setup() {
   SMF2 = xSemaphoreCreateBinary();
   SMF3 = xSemaphoreCreateMutex();
   xSemaphoreGive(SMF3);
-
-  //Serial.begin(115200);
   
   LCD.init();
   LCD.backlight();
