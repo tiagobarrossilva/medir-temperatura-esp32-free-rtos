@@ -1,3 +1,10 @@
+/*
+  A formula usada para fazer os calculo e encontrar os valores das temperaturas em graus C e F
+  eu encontrei no site: https://portal.vidadesilicio.com.br/sensor-temperatura-ntc10k-com-esp32/
+  
+  As implementações relacionadas as threads eu fiz seguindo a documentação do Freertos
+*/
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
